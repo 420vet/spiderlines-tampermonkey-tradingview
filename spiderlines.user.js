@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         PaintFloid's Spiderlines Tampermonkey-Tradingview
 // @namespace    https://github.com/420vet/spiderlines-tampermonkey-tradingview
-// @version      1.0.0
+// @version      1.1.0
 // @author       PaintFloid
 // @homepageURL  https://github.com/420vet/spiderlines-tampermonkey-tradingview
 // @supportURL   https://github.com/420vet/spiderlines-tampermonkey-tradingview/issues
@@ -48,6 +48,7 @@
         maxLines: 30,
         lineWidth: 1,
         lineStyle: 'solid',
+        lineOpacity: 100,
         collapsed: false,
         panelLeft: null,
         panelTop: 80,
@@ -254,6 +255,14 @@
         return removed;
     };
 
+    const withOpacity = (hex, opacity) => {
+        const match = /^#?([0-9a-f]{6})$/i.exec(hex || '');
+        if (!match) return hex;
+        const value = parseInt(match[1], 16);
+        const alpha = Math.min(100, Math.max(0, opacity ?? 100)) / 100;
+        return `rgba(${(value >> 16) & 255}, ${(value >> 8) & 255}, ${value & 255}, ${alpha})`;
+    };
+
     const createRay = async (chart, from, to, color) => {
         const id = await Promise.resolve(chart.createMultipointShape([from, to], {
             shape: 'ray',
@@ -262,7 +271,7 @@
             disableSave: false,
             disableUndo: false,
             overrides: {
-                linecolor: color,
+                linecolor: withOpacity(color, settings.lineOpacity),
                 linewidth: settings.lineWidth,
                 linestyle: LINE_STYLES[settings.lineStyle] ?? 0,
                 extendLeft: false,
@@ -450,6 +459,10 @@
                 <input type="number" min="1" max="4" data-key="lineWidth" title="Ray width">
                 <select data-key="lineStyle" title="Ray style"><option value="solid">Solid</option><option value="dashed">Dashed</option><option value="dotted">Dotted</option></select>
             </div>
+            <div class="sl-row">
+                <span class="sl-grow" title="Ray opacity. 100 = solid, 0 = invisible.">Opacity %</span>
+                <input type="number" min="0" max="100" step="5" data-key="lineOpacity" title="Ray opacity. 100 = solid, 0 = invisible.">
+            </div>
             <div class="sl-row" style="margin-top:8px">
                 <button data-action="draw" class="sl-grow sl-primary" title="Draw native rays from the anchor to each confirmed pivot on the current timeframe.">Draw</button>
                 <button data-action="redraw" class="sl-grow" title="Remove the spiderlines of this symbol and draw them again with the current settings.">Redraw</button>
@@ -459,7 +472,7 @@
         </div>
     `;
 
-    const NUMERIC_KEYS = new Set(['anchorPrice', 'highLeft', 'highRight', 'lowLeft', 'lowRight', 'maxLines', 'lineWidth']);
+    const NUMERIC_KEYS = new Set(['anchorPrice', 'highLeft', 'highRight', 'lowLeft', 'lowRight', 'maxLines', 'lineWidth', 'lineOpacity']);
     const ui = {};
 
     const setStatus = (message, isError = false) => {
@@ -485,7 +498,9 @@
         if (NUMERIC_KEYS.has(key)) {
             const number = parseFloat(input.value);
             if (!Number.isFinite(number)) return key === 'anchorPrice' ? null : DEFAULT_SETTINGS[key];
-            return key === 'anchorPrice' ? number : Math.max(1, Math.round(number));
+            if (key === 'anchorPrice') return number;
+            if (key === 'lineOpacity') return Math.min(100, Math.max(0, Math.round(number)));
+            return Math.max(1, Math.round(number));
         }
         return input.value;
     };

@@ -44,6 +44,7 @@ The panel can be dragged by its header and collapsed with the `_` button. Every 
 | Control | What it does |
 |---|---|
 | **Width / Style** | Ray width (1–4) and style (solid, dashed or dotted). |
+| **Opacity %** | Ray opacity (0–100). 100 = solid, 0 = invisible. |
 
 ### Actions
 
