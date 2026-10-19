@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         PaintFloid's Spiderlines Tampermonkey-Tradingview
 // @namespace    https://github.com/420vet/spiderlines-tampermonkey-tradingview
-// @version      1.1.0
+// @version      1.2.0
 // @author       PaintFloid
 // @homepageURL  https://github.com/420vet/spiderlines-tampermonkey-tradingview
 // @supportURL   https://github.com/420vet/spiderlines-tampermonkey-tradingview/issues
@@ -21,6 +21,7 @@
     const SETTINGS_KEY = 'spiderlines:settings';
     const DRAWINGS_KEY_PREFIX = 'spiderlines:';
     const PRICE_MATCH_EPSILON = 1e-9;
+    const GROUP_NAME = 'spiderlines-420';
     const LINE_STYLES = { solid: 0, dotted: 1, dashed: 2 };
     const ALL_INTERVALS_VISIBLE = {
         ticks: true,
@@ -266,7 +267,7 @@
     const createRay = async (chart, from, to, color) => {
         const id = await Promise.resolve(chart.createMultipointShape([from, to], {
             shape: 'ray',
-            lock: false,
+            lock: true,
             disableSelection: false,
             disableSave: false,
             disableUndo: false,
@@ -290,6 +291,23 @@
         return id;
     };
 
+    const groupRays = (chart, ids) => {
+        if (!ids.length || typeof chart.shapesGroupController !== 'function') return false;
+        try {
+            const controller = chart.shapesGroupController();
+            const selection = chart.selection();
+            selection.set(ids);
+            const groupId = controller.createGroupFromSelection();
+            selection.clear();
+            if (groupId === null || groupId === undefined) return false;
+            controller.setGroupName(groupId, GROUP_NAME);
+            controller.setGroupLock(groupId, true);
+            return true;
+        } catch {
+            return false;
+        }
+    };
+
     const drawSpiderlines = async () => {
         const chart = getChart();
         if (!chart) return setStatus('TradingView API not found. Reload the chart page.', true);
@@ -311,21 +329,23 @@
         const from = { time: settings.anchorTime, price: settings.anchorPrice };
         const key = drawingsKey(chart);
         const records = safeRead(key, []);
-        let created = 0;
+        const createdIds = [];
         for (const pivot of pivots.reverse()) {
             const to = { time: pivot.time, price: pivot.price };
             try {
                 const id = await createRay(chart, from, to, pivot.isHigh ? settings.highColor : settings.lowColor);
                 if (id !== null) {
                     records.push({ id, from, to });
-                    created++;
+                    createdIds.push(id);
                 }
             } catch (error) {
                 setStatus(`Ray creation failed: ${error && error.message ? error.message : error}`, true);
             }
         }
         safeWrite(key, records);
-        setStatus(`Drew ${created} rays on ${getSymbol(chart)}. Visible on every timeframe.`);
+        const grouped = groupRays(chart, createdIds);
+        const groupNote = grouped ? ` Locked in group ${GROUP_NAME}.` : ' Locked (grouping not available).';
+        setStatus(`Drew ${createdIds.length} rays on ${getSymbol(chart)}. Visible on every timeframe.${groupNote}`);
     };
 
     const snapPrice = async (chart, time, price, mode) => {

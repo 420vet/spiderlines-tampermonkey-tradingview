@@ -4,7 +4,8 @@ A Tampermonkey userscript that draws **spiderlines** on TradingView with Trading
 
 The rays are ordinary TradingView drawings, so they:
 
-- can be edited, moved, restyled or deleted like any ray you draw by hand
+- are drawn **locked** and grouped in the Object Tree under **spiderlines-420**, so they can't be moved by accident (unlock the group to edit them)
+- can be edited, moved, restyled or deleted like any ray you draw by hand once unlocked
 - are saved in your chart layout and are still there after a page reload
 - show on **every timeframe**, anchored to the same time and price
 
